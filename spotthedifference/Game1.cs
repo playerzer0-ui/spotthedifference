@@ -18,6 +18,7 @@ namespace spotthedifference
         private bool circlePointerCaptured;
         GameMenu menu;
         HomeScreen homeScreen;
+        CreateMenu createMenu;
         private enum Screen { Home, Play, Create }
         private Screen screen = Screen.Home;
         public Game1()
@@ -49,6 +50,10 @@ namespace spotthedifference
 
             canvas = new Canvas(GraphicsDevice, Window, 1920, 1080);
             ResetCircles();
+            createMenu = new CreateMenu(this, Content.Load<SpriteFont>("InputFont"), new Vector2(1920, 1080))
+            {
+                ScreenToLocal = canvas.ScreenToCanvas
+            };
             menu = new GameMenu(this, new Vector2(1800, 120), 100)
             {
                 ScreenToLocal = canvas.ScreenToCanvas
@@ -75,6 +80,7 @@ namespace spotthedifference
             menu.Close();
             menu.EditorActionsEnabled = next == Screen.Create;
             if (next == Screen.Home) homeScreen.Enter();
+            if (next == Screen.Create) createMenu.Enter();
         }
 
         private void AddCircle()
@@ -90,8 +96,7 @@ namespace spotthedifference
             circlePointerCaptured = false;
             foreach (ResizableCircle circle in circles) circle.Dispose();
             circles.Clear();
-            circles.Add(new ResizableCircle(this, canvas, new Vector2(100, 300), 50));
-            SelectCircle(circles[0]);
+            SelectCircle(null);
         }
 
         private void SelectCircle(ResizableCircle circle)
@@ -113,7 +118,7 @@ namespace spotthedifference
                 Vector2 position = canvas.ScreenToCanvas(new Vector2(mouse.X, mouse.Y));
                 Point point = new Point((int)position.X, (int)position.Y);
                 // UI is drawn above circles, so it gets first claim on a click.
-                if (!menu.HitTest(position))
+                if (!menu.HitTest(position) && !createMenu.HitTest(position))
                 {
                     ResizableCircle hit = null;
                     // Last drawn is topmost. Stop after the first hit.
@@ -159,7 +164,11 @@ namespace spotthedifference
             menu.Update(gameTime);
             // Circle editing stays available while the pause menu is open.
             // Always update it so mouse press/release tracking cannot become stale.
-            if (screen == Screen.Create) UpdateCircles(gameTime);
+            if (screen == Screen.Create)
+            {
+                createMenu.Update(gameTime);
+                UpdateCircles(gameTime);
+            }
 
             base.Update(gameTime);
         }
@@ -169,6 +178,7 @@ namespace spotthedifference
             foreach (ResizableCircle circle in circles) circle.Dispose();
             menu?.Dispose();
             homeScreen?.Dispose();
+            createMenu?.Dispose();
             Globals.DisposePixel();
             base.UnloadContent();
         }
@@ -176,18 +186,24 @@ namespace spotthedifference
         protected override void Draw(GameTime gameTime)
         {
             if (screen == Screen.Home) homeScreen.PrepareDraw();
-            else menu.PrepareDraw();
+            else
+            {
+                if (screen == Screen.Create) createMenu.PrepareDraw();
+                menu.PrepareDraw();
+            }
             canvas.Activate();
             GraphicsDevice.Clear(screen == Screen.Home ? homeScreen.BackgroundColor : PicoPallete.blue);
             _spriteBatch.Begin(samplerState: SamplerState.LinearClamp);
             if (screen == Screen.Home) homeScreen.Draw();
             else
             {
+                createMenu.DrawImages();
                 foreach (ResizableCircle circle in circles)
                 {
                     if (screen == Screen.Create) circle.Draw();
                     else circle.Collider.Draw(PicoPallete.red);
                 }
+                if (screen == Screen.Create) createMenu.Draw();
                 menu.Draw();
             }
             _spriteBatch.End();
