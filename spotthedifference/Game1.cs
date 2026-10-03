@@ -17,6 +17,9 @@ namespace spotthedifference
         private MouseState previousCircleMouse;
         private bool circlePointerCaptured;
         GameMenu menu;
+        HomeScreen homeScreen;
+        private enum Screen { Home, Play, Create }
+        private Screen screen = Screen.Home;
         public Game1()
         {
             _graphics = new GraphicsDeviceManager(this);
@@ -55,6 +58,23 @@ namespace spotthedifference
             {
                 ResetCircles();
             };
+            homeScreen = new HomeScreen(this, Content.Load<SpriteFont>("TitleFont"), new Vector2(1920, 1080))
+            {
+                ScreenToLocal = canvas.ScreenToCanvas
+            };
+            homeScreen.CreateRequested += () => OpenScreen(Screen.Create);
+            homeScreen.PlayRequested += () => OpenScreen(Screen.Play);
+            menu.HomeRequested += () => OpenScreen(Screen.Home);
+        }
+
+        private void OpenScreen(Screen next)
+        {
+            screen = next;
+            circlePointerCaptured = false;
+            previousCircleMouse = Mouse.GetState();
+            menu.Close();
+            menu.EditorActionsEnabled = next == Screen.Create;
+            if (next == Screen.Home) homeScreen.Enter();
         }
 
         private void AddCircle()
@@ -130,10 +150,16 @@ namespace spotthedifference
             if (Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
+            if (screen == Screen.Home)
+            {
+                homeScreen.Update(gameTime);
+                base.Update(gameTime);
+                return;
+            }
             menu.Update(gameTime);
             // Circle editing stays available while the pause menu is open.
             // Always update it so mouse press/release tracking cannot become stale.
-            UpdateCircles(gameTime);
+            if (screen == Screen.Create) UpdateCircles(gameTime);
 
             base.Update(gameTime);
         }
@@ -142,18 +168,28 @@ namespace spotthedifference
         {
             foreach (ResizableCircle circle in circles) circle.Dispose();
             menu?.Dispose();
+            homeScreen?.Dispose();
             Globals.DisposePixel();
             base.UnloadContent();
         }
 
         protected override void Draw(GameTime gameTime)
         {
-            menu.PrepareDraw();
+            if (screen == Screen.Home) homeScreen.PrepareDraw();
+            else menu.PrepareDraw();
             canvas.Activate();
-            GraphicsDevice.Clear(PicoPallete.blue);
+            GraphicsDevice.Clear(screen == Screen.Home ? homeScreen.BackgroundColor : PicoPallete.blue);
             _spriteBatch.Begin(samplerState: SamplerState.LinearClamp);
-            foreach (ResizableCircle circle in circles) circle.Draw();
-            menu.Draw();
+            if (screen == Screen.Home) homeScreen.Draw();
+            else
+            {
+                foreach (ResizableCircle circle in circles)
+                {
+                    if (screen == Screen.Create) circle.Draw();
+                    else circle.Collider.Draw(PicoPallete.red);
+                }
+                menu.Draw();
+            }
             _spriteBatch.End();
 
             canvas.Draw(_spriteBatch);

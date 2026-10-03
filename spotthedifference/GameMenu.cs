@@ -16,6 +16,7 @@ namespace spotthedifference
         private float progress;
         public PauseButton Pause { get; }
         public bool IsPaused => Pause.IsPaused;
+        public bool EditorActionsEnabled { get; set; } = true;
         public float TransitionSeconds { get; set; } = 0.4f;
         public event Action AddCircleRequested;
         public event Action ResetRequested;
@@ -58,7 +59,9 @@ namespace spotthedifference
             Move(save, origin - new Vector2(spacing * 2 * tween, 0));
             Move(home, origin - new Vector2(spacing * tween, 0));
             add.SquareAmount = tween;
-            reset.Enabled = save.Enabled = home.Enabled = IsPaused && progress >= 1f;
+            add.Enabled = EditorActionsEnabled;
+            reset.Enabled = save.Enabled = EditorActionsEnabled && IsPaused && progress >= 1f;
+            home.Enabled = IsPaused && progress >= 1f;
             add.Update(gameTime);
             reset.Update(gameTime);
             save.Update(gameTime);
@@ -67,6 +70,14 @@ namespace spotthedifference
 
         private static void Move(PauseButton button, Vector2 center) =>
             button.Collider.UpdateRect((int)MathF.Round(center.X), (int)MathF.Round(center.Y));
+
+        public void Close()
+        {
+            Pause.IsPaused = false;
+            progress = 0;
+            Pause.ResetInteraction();
+            add.ResetInteraction(); reset.ResetInteraction(); save.ResetInteraction(); home.ResetInteraction();
+        }
 
         public bool HitTest(Vector2 position) => Pause.HitTest(position) || add.HitTest(position)
             || (progress > 0 && (reset.HitTest(position) || save.HitTest(position) || home.HitTest(position)));
@@ -81,8 +92,12 @@ namespace spotthedifference
         public void Draw()
         {
             // Emerging buttons are drawn first, so they slide out from behind Pause.
-            if (progress > 0) { reset.Draw(); save.Draw(); home.Draw(); }
-            add.Draw();
+            if (progress > 0)
+            {
+                if (EditorActionsEnabled) { reset.Draw(); save.Draw(); }
+                home.Draw();
+            }
+            if (EditorActionsEnabled) add.Draw();
             Pause.Draw();
         }
 

@@ -6,7 +6,7 @@ using NodeTesting.models;
 
 namespace spotthedifference
 {
-    public enum MenuIcon { Pause, AddCircle, Reset, Save, Home }
+    public enum MenuIcon { Pause, AddCircle, Reset, Save, Home, Play, Create }
     /// <summary>A diamond pause button that morphs to a square and toggles to a red X.</summary>
     public sealed class PauseButton : IDisposable
     {
@@ -32,6 +32,8 @@ namespace spotthedifference
         public MenuIcon Icon { get; set; } = MenuIcon.Pause;
         /// <summary>Optional content-managed icon, drawn upright independently of the background.</summary>
         public Texture2D IconTexture { get; set; }
+        /// <summary>Visual offset in button coordinates; leaves the collider and background in place.</summary>
+        public Vector2 IconOffset { get; set; }
         public event Action Clicked;
         public event Action<bool> PauseChanged;
         public Color IdleColor { get; set; } = new Color(208, 108, 202);
@@ -39,6 +41,16 @@ namespace spotthedifference
         public Color PausedColor { get; set; } = Color.Red;
         public float AnimationSpeed { get; set; } = 12f;
         public float IconTransitionSeconds { get; set; } = 0.35f;
+
+        public void ResetInteraction()
+        {
+            previousMouse = Mouse.GetState();
+            armed = false;
+            IsHovered = false;
+            rotation = MathHelper.PiOver4 * (1f - SquareAmount);
+            iconProgress = IsPaused ? 1f : 0f;
+            currentColor = (IsPaused ? PausedColor : IdleColor).ToVector4();
+        }
 
         /// <param name="size">Side length of the square; the idle diamond extends farther.</param>
         public PauseButton(Game game, Vector2 center, int size = 100)
@@ -124,7 +136,7 @@ namespace spotthedifference
                 if (IconTexture != null)
                 {
                     float scale = size * 0.65f / Math.Max(IconTexture.Width, IconTexture.Height);
-                    artworkBatch.Draw(IconTexture, center, null, Color.White, 0,
+                    artworkBatch.Draw(IconTexture, center + IconOffset, null, Color.White, 0,
                         new Vector2(IconTexture.Width / 2f, IconTexture.Height / 2f), scale, SpriteEffects.None, 0);
                 }
                 else
