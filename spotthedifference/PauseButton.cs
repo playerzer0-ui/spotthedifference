@@ -6,7 +6,7 @@ using NodeTesting.models;
 
 namespace spotthedifference
 {
-    public enum MenuIcon { Pause, AddCircle, Reset, Home }
+    public enum MenuIcon { Pause, AddCircle, Reset, Save, Home }
     /// <summary>A diamond pause button that morphs to a square and toggles to a red X.</summary>
     public sealed class PauseButton : IDisposable
     {
@@ -30,6 +30,8 @@ namespace spotthedifference
         public bool Enabled { get; set; } = true;
         public float SquareAmount { get; set; }
         public MenuIcon Icon { get; set; } = MenuIcon.Pause;
+        /// <summary>Optional content-managed icon, drawn upright independently of the background.</summary>
+        public Texture2D IconTexture { get; set; }
         public event Action Clicked;
         public event Action<bool> PauseChanged;
         public Color IdleColor { get; set; } = new Color(208, 108, 202);
@@ -110,7 +112,7 @@ namespace spotthedifference
             RenderTargetBinding[] previousTargets = device.GetRenderTargets();
             device.SetRenderTarget(artwork);
             device.Clear(Color.Transparent);
-            artworkBatch.Begin(samplerState: SamplerState.PointClamp,
+            artworkBatch.Begin(samplerState: SamplerState.LinearClamp,
                 transformMatrix: Matrix.CreateScale(Supersampling));
             Vector2 center = new Vector2(artworkSize / 2f);
             float border = Math.Max(2f, size * 0.04f);
@@ -119,7 +121,14 @@ namespace spotthedifference
 
             if (Icon != MenuIcon.Pause)
             {
-                DrawMenuIcon(center, border);
+                if (IconTexture != null)
+                {
+                    float scale = size * 0.65f / Math.Max(IconTexture.Width, IconTexture.Height);
+                    artworkBatch.Draw(IconTexture, center, null, Color.White, 0,
+                        new Vector2(IconTexture.Width / 2f, IconTexture.Height / 2f), scale, SpriteEffects.None, 0);
+                }
+                else
+                    DrawMenuIcon(center, border);
                 artworkBatch.End();
                 device.SetRenderTargets(previousTargets);
                 return;
