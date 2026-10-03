@@ -87,7 +87,11 @@ namespace spotthedifference
         {
             int index = circles.Count;
             circles.Add(new ResizableCircle(this, canvas,
-                new Vector2(100 + (index % 10) * 150, 300 + (index / 10) * 150), 50));
+                new Vector2(1080 + (index % 5) * 150, 300 + ((index / 5) % 5) * 150), 50)
+            {
+                // Right half of the logical canvas, with room for selection controls.
+                MovementBounds = new Rectangle(978, 220, 924, 842)
+            });
             SelectCircle(circles[circles.Count - 1]);
         }
 
@@ -118,11 +122,12 @@ namespace spotthedifference
                 Vector2 position = canvas.ScreenToCanvas(new Vector2(mouse.X, mouse.Y));
                 Point point = new Point((int)position.X, (int)position.Y);
                 // UI is drawn above circles, so it gets first claim on a click.
-                if (!menu.HitTest(position) && !createMenu.HitTest(position))
+                bool selectedControlHit = selectedCircle?.HitTestControls(point) == true;
+                if (!menu.HitTest(position) && (selectedControlHit || !createMenu.HitTest(position)))
                 {
-                    ResizableCircle hit = null;
+                    ResizableCircle hit = selectedControlHit ? selectedCircle : null;
                     // Last drawn is topmost. Stop after the first hit.
-                    for (int i = circles.Count - 1; i >= 0; i--)
+                    for (int i = circles.Count - 1; hit == null && i >= 0; i--)
                     {
                         if (!circles[i].HitTest(point)) continue;
                         hit = circles[i];
@@ -200,10 +205,13 @@ namespace spotthedifference
                 createMenu.DrawImages();
                 foreach (ResizableCircle circle in circles)
                 {
-                    if (screen == Screen.Create) circle.Draw();
-                    else circle.Collider.Draw(PicoPallete.red);
+                    circle.Collider.Draw(PicoPallete.red);
                 }
-                if (screen == Screen.Create) createMenu.Draw();
+                if (screen == Screen.Create)
+                {
+                    createMenu.Draw();
+                    selectedCircle?.DrawSelection();
+                }
                 menu.Draw();
             }
             _spriteBatch.End();

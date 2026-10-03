@@ -19,17 +19,44 @@ namespace spotthedifference
         private Vector2 resizeAnchor;
         private Vector2 resizeGrabOffset;
         private Texture2D selectionPixel;
-        private const int ResizeHandleSize = 12;
+        private const int ResizeHandleSize = 20;
         private const int MinimumRadius = 10;
         private const int DeleteButtonSize = 22;
         private readonly CollisionRect deleteButton;
+        private Rectangle? movementBounds;
+
+        /// <summary>Optional area containing the entire circle during movement and resizing.</summary>
+        public Rectangle? MovementBounds
+        {
+            get => movementBounds;
+            set
+            {
+                if (value.HasValue && (value.Value.Width < MinimumRadius * 2 || value.Value.Height < MinimumRadius * 2))
+                    throw new ArgumentException("Movement bounds must fit the minimum circle size.", nameof(value));
+                movementBounds = value;
+                ConstrainToBounds();
+            }
+        }
+
+        private void ConstrainToBounds()
+        {
+            if (!movementBounds.HasValue) return;
+            Rectangle bounds = movementBounds.Value;
+            circle1.Radius = Math.Min(circle1.Radius, Math.Min(bounds.Width, bounds.Height) / 2);
+            circle1.Center = new Vector2(
+                MathHelper.Clamp(circle1.Center.X, bounds.Left + Radius, bounds.Right - Radius),
+                MathHelper.Clamp(circle1.Center.Y, bounds.Top + Radius, bounds.Bottom - Radius));
+        }
 
 
         public CollisionCircle Collider => circle1;
         public bool IsSelected { get; set; } = true;
         /// <summary>Tests the circle body and, when selected, its visible resize handle.</summary>
         public bool HitTest(Point point) => circle1.Contains(point)
-            || (IsSelected && (GetResizeHandle().Contains(point) || HitTestDelete(point)));
+            || HitTestControls(point);
+
+        public bool HitTestControls(Point point) => IsSelected
+            && (GetResizeHandle().Contains(point) || HitTestDelete(point));
 
         public bool HitTestDelete(Point point)
         {
@@ -42,11 +69,15 @@ namespace spotthedifference
             Vector2 corner = Center - new Vector2(Radius);
             deleteButton.UpdateRect((int)System.MathF.Round(corner.X), (int)System.MathF.Round(corner.Y));
         }
-        public Vector2 Center { get => circle1.Center; set => circle1.Center = value; }
+        public Vector2 Center
+        {
+            get => circle1.Center;
+            set { circle1.Center = value; ConstrainToBounds(); }
+        }
         public int Radius
         {
             get => circle1.Radius;
-            set => circle1.Radius = Math.Max(MinimumRadius, value);
+            set { circle1.Radius = Math.Max(MinimumRadius, value); ConstrainToBounds(); }
         }
 
         /// <summary>Create in LoadContent after initializing Globals.</summary>
@@ -96,10 +127,19 @@ namespace spotthedifference
                 Vector2 size = canvasPos + resizeGrabOffset - resizeAnchor;
                 circle1.Radius = System.Math.Max(MinimumRadius,
                     (int)System.MathF.Round((size.X + size.Y) / 4f));
+                if (movementBounds.HasValue)
+                {
+                    Rectangle bounds = movementBounds.Value;
+                    int maximumRadius = (int)System.MathF.Floor(System.MathF.Min(
+                        bounds.Right - resizeAnchor.X, bounds.Bottom - resizeAnchor.Y) / 2f);
+                    circle1.Radius = System.Math.Min(circle1.Radius, maximumRadius);
+                }
                 circle1.Center = resizeAnchor + new Vector2(circle1.Radius);
             }
             else if (isDraggingCircle)
                 circle1.Center = canvasPos + circleDragOffset;
+
+            ConstrainToBounds();
 
             previousMouseState = currentMouseState;
             
@@ -118,6 +158,12 @@ namespace spotthedifference
         public void Draw()
         {
             circle1.Draw(PicoPallete.red);
+            DrawSelection();
+        }
+
+        /// <summary>Draw after other objects so the selected controls remain visible.</summary>
+        public void DrawSelection()
+        {
             if (!IsSelected) return;
             Vector2 topLeft = circle1.Center - new Vector2(circle1.Radius);
             int diameter = circle1.Radius * 2;
@@ -127,7 +173,11 @@ namespace spotthedifference
             Globals.spriteBatch.Draw(selectionPixel, new Rectangle(x, y + diameter, diameter, 1), PicoPallete.white);
             Globals.spriteBatch.Draw(selectionPixel, new Rectangle(x, y, 1, diameter), PicoPallete.white);
             Globals.spriteBatch.Draw(selectionPixel, new Rectangle(x + diameter, y, 1, diameter), PicoPallete.white);
-            Globals.spriteBatch.Draw(selectionPixel, GetResizeHandle(), PicoPallete.white);
+            Rectangle resizeHandle = GetResizeHandle();
+            Globals.spriteBatch.Draw(Globals.Pixel, resizeHandle, PicoPallete.black);
+            Globals.spriteBatch.Draw(Globals.Pixel,
+                new Rectangle(resizeHandle.X + 2, resizeHandle.Y + 2,
+                    resizeHandle.Width - 4, resizeHandle.Height - 4), PicoPallete.white);
             UpdateDeleteButton();
             deleteButton.Draw(PicoPallete.black);
             Rectangle button = deleteButton.Rect;
