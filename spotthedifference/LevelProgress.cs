@@ -23,9 +23,7 @@ namespace spotthedifference
 
         public ProgressStore(string directory = null)
         {
-            this.directory = directory ?? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "SpotTheDifference", "progress");
+            this.directory = directory ?? LevelFile.LevelsDirectory;
         }
 
         /// <summary>Migrate old per-level files only after writing the combined file successfully.</summary>
