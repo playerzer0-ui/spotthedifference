@@ -82,6 +82,8 @@ namespace spotthedifference
                 throw new ArgumentException("Enter a level name (1-60 characters).");
             if (originalPng == null || originalPng.Length == 0 || newPng == null || newPng.Length == 0)
                 throw new ArgumentException("Upload both images before saving.");
+            if (circles == null || circles.Count == 0)
+                throw new ArgumentException("Add at least one circle before saving.");
             if (canvasWidth <= 0 || canvasHeight <= 0) throw new ArgumentException("Invalid canvas size.");
             foreach (LevelCircle circle in circles)
                 if (!float.IsFinite(circle.X) || !float.IsFinite(circle.Y) || circle.Radius <= 0)

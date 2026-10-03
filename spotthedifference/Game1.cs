@@ -139,6 +139,7 @@ namespace spotthedifference
         private string SaveCurrentLevel(string name)
         {
             if (!createMenu.HasBothImages) throw new ArgumentException("Upload both images before saving.");
+            if (circles.Count == 0) throw new ArgumentException("Add at least one circle before saving.");
             var markers = new List<LevelCircle>();
             foreach (ResizableCircle circle in circles)
                 markers.Add(new LevelCircle(circle.Center.X, circle.Center.Y, circle.Radius));
