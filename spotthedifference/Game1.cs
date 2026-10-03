@@ -3,6 +3,8 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using NodeTesting.models;
 using System.Collections.Generic;
+using System;
+using System.IO;
 
 namespace spotthedifference
 {
@@ -19,7 +21,14 @@ namespace spotthedifference
         GameMenu menu;
         HomeScreen homeScreen;
         CreateMenu createMenu;
-        private enum Screen { Home, Play, Create }
+        SaveBox saveBox;
+        LevelBrowser levelBrowser;
+        LevelSession levelSession;
+        private readonly ProgressStore progressStore = new ProgressStore();
+        private string saveNotice;
+        private float saveNoticeSeconds;
+        private SpriteFont uiFont;
+        private enum Screen { Home, Browse, Play, Create }
         private Screen screen = Screen.Home;
         public Game1()
         {
@@ -54,11 +63,27 @@ namespace spotthedifference
             {
                 ScreenToLocal = canvas.ScreenToCanvas
             };
+            uiFont = Content.Load<SpriteFont>("InputFont");
+            saveBox = new SaveBox(this, uiFont, new Vector2(1920, 1080))
+            {
+                ScreenToLocal = canvas.ScreenToCanvas,
+                SaveLevel = SaveCurrentLevel
+            };
+            saveBox.Saved += path =>
+            {
+                saveNotice = "Saved: " + Path.GetFileName(path);
+                saveNoticeSeconds = 6;
+            };
             menu = new GameMenu(this, new Vector2(1800, 120), 100)
             {
                 ScreenToLocal = canvas.ScreenToCanvas
             };
             menu.AddCircleRequested += AddCircle;
+            menu.SaveRequested += () =>
+            {
+                circlePointerCaptured = false;
+                saveBox.Open();
+            };
             menu.ResetRequested += () =>
             {
                 ResetCircles();
@@ -68,12 +93,38 @@ namespace spotthedifference
                 ScreenToLocal = canvas.ScreenToCanvas
             };
             homeScreen.CreateRequested += () => OpenScreen(Screen.Create);
-            homeScreen.PlayRequested += () => OpenScreen(Screen.Play);
-            menu.HomeRequested += () => OpenScreen(Screen.Home);
+            homeScreen.PlayRequested += () => OpenScreen(Screen.Browse);
+            levelBrowser = new LevelBrowser(this, uiFont, progressStore)
+            {
+                ScreenToLocal = canvas.ScreenToCanvas
+            };
+            levelBrowser.HomeRequested += () => OpenScreen(Screen.Home);
+            levelBrowser.LevelSelected += (level, progress) =>
+            {
+                try
+                {
+                    levelSession?.Dispose();
+                    levelSession = null;
+                    levelSession = new LevelSession(this, uiFont, level, progress, progressStore)
+                    {
+                        ScreenToLocal = canvas.ScreenToCanvas
+                    };
+                    levelSession.HomeRequested += () => OpenScreen(Screen.Browse);
+                    OpenScreen(Screen.Play);
+                }
+                catch (Exception exception)
+                {
+                    saveNotice = "Could not open this level.";
+                    saveNoticeSeconds = 6;
+                    System.Diagnostics.Debug.WriteLine(exception);
+                }
+            };
+            menu.HomeRequested += () => OpenScreen(screen == Screen.Play ? Screen.Browse : Screen.Home);
         }
 
         private void OpenScreen(Screen next)
         {
+            saveBox.Close();
             screen = next;
             circlePointerCaptured = false;
             previousCircleMouse = Mouse.GetState();
@@ -81,6 +132,18 @@ namespace spotthedifference
             menu.EditorActionsEnabled = next == Screen.Create;
             if (next == Screen.Home) homeScreen.Enter();
             if (next == Screen.Create) createMenu.Enter();
+            if (next == Screen.Browse) levelBrowser.Enter();
+            if (next != Screen.Play) { levelSession?.Dispose(); levelSession = null; }
+        }
+
+        private string SaveCurrentLevel(string name)
+        {
+            if (!createMenu.HasBothImages) throw new ArgumentException("Upload both images before saving.");
+            var markers = new List<LevelCircle>();
+            foreach (ResizableCircle circle in circles)
+                markers.Add(new LevelCircle(circle.Center.X, circle.Center.Y, circle.Radius));
+            return LevelFile.Save(LevelFile.LevelsDirectory, name,
+                createMenu.GetImagePng(0), createMenu.GetImagePng(1), 1920, 1080, markers);
         }
 
         private void AddCircle()
@@ -157,8 +220,21 @@ namespace spotthedifference
         protected override void Update(GameTime gameTime)
         {
             Globals.Input.Update();
-            if (Keyboard.GetState().IsKeyDown(Keys.Escape))
-                Exit();
+            saveNoticeSeconds = Math.Max(0, saveNoticeSeconds - (float)gameTime.ElapsedGameTime.TotalSeconds);
+            if (saveBox.IsOpen)
+            {
+                saveBox.Update(gameTime);
+                previousCircleMouse = Mouse.GetState();
+                base.Update(gameTime);
+                return;
+            }
+            if (Globals.Input.KeyJustDown(Keys.Escape))
+            {
+                if (screen == Screen.Home) Exit();
+                else OpenScreen(screen == Screen.Play ? Screen.Browse : Screen.Home);
+                base.Update(gameTime);
+                return;
+            }
 
             if (screen == Screen.Home)
             {
@@ -166,13 +242,31 @@ namespace spotthedifference
                 base.Update(gameTime);
                 return;
             }
-            menu.Update(gameTime);
+            if (screen == Screen.Browse)
+            {
+                levelBrowser.Update(gameTime);
+                base.Update(gameTime);
+                return;
+            }
+            if (screen != Screen.Play || levelSession?.IsCompleted != true)
+                menu.Update(gameTime);
+            if (saveBox.IsOpen)
+            {
+                base.Update(gameTime);
+                return;
+            }
             // Circle editing stays available while the pause menu is open.
             // Always update it so mouse press/release tracking cannot become stale.
             if (screen == Screen.Create)
             {
                 createMenu.Update(gameTime);
                 UpdateCircles(gameTime);
+            }
+            if (screen == Screen.Play && levelSession != null)
+            {
+                MouseState mouse = Mouse.GetState();
+                Vector2 position = canvas.ScreenToCanvas(new Vector2(mouse.X, mouse.Y));
+                levelSession.Update(gameTime, !menu.IsPaused && !menu.HitTest(position), !menu.IsPaused);
             }
 
             base.Update(gameTime);
@@ -184,6 +278,9 @@ namespace spotthedifference
             menu?.Dispose();
             homeScreen?.Dispose();
             createMenu?.Dispose();
+            saveBox?.Dispose();
+            levelBrowser?.Dispose();
+            levelSession?.Dispose();
             Globals.DisposePixel();
             base.UnloadContent();
         }
@@ -191,15 +288,23 @@ namespace spotthedifference
         protected override void Draw(GameTime gameTime)
         {
             if (screen == Screen.Home) homeScreen.PrepareDraw();
-            else
+            else if (screen != Screen.Browse)
             {
                 if (screen == Screen.Create) createMenu.PrepareDraw();
-                menu.PrepareDraw();
+                if (screen == Screen.Play && levelSession?.IsCompleted == true) levelSession.PrepareDraw();
+                else menu.PrepareDraw();
             }
+            saveBox.PrepareDraw();
             canvas.Activate();
-            GraphicsDevice.Clear(screen == Screen.Home ? homeScreen.BackgroundColor : PicoPallete.blue);
+            GraphicsDevice.Clear(screen == Screen.Home ? homeScreen.BackgroundColor : new Color(67, 173, 213));
             _spriteBatch.Begin(samplerState: SamplerState.LinearClamp);
             if (screen == Screen.Home) homeScreen.Draw();
+            else if (screen == Screen.Browse) levelBrowser.Draw();
+            else if (screen == Screen.Play)
+            {
+                levelSession?.Draw();
+                if (levelSession?.IsCompleted != true) menu.Draw();
+            }
             else
             {
                 createMenu.DrawImages();
@@ -214,6 +319,9 @@ namespace spotthedifference
                 }
                 menu.Draw();
             }
+            if (saveNoticeSeconds > 0)
+                _spriteBatch.DrawString(uiFont, saveNotice, new Vector2(24, 1030), Color.White);
+            saveBox.Draw();
             _spriteBatch.End();
 
             canvas.Draw(_spriteBatch);

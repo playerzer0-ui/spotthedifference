@@ -17,6 +17,16 @@ namespace spotthedifference
         public string OriginalPath { get; private set; }
         public string NewPath { get; private set; }
         public string ErrorMessage { get; private set; }
+        public bool HasBothImages => images[0] != null && images[1] != null;
+
+        public byte[] GetImagePng(int side)
+        {
+            if (side < 0 || side > 1) throw new ArgumentOutOfRangeException(nameof(side));
+            Texture2D image = images[side] ?? throw new InvalidOperationException("Upload both images before saving.");
+            using var stream = new MemoryStream();
+            image.SaveAsPng(stream, image.Width, image.Height);
+            return stream.ToArray();
+        }
         public Func<Vector2, Vector2> ScreenToLocal
         {
             set { foreach (var button in uploadButtons) button.ScreenToLocal = value; }

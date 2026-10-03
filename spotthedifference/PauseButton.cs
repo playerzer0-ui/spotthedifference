@@ -6,7 +6,7 @@ using NodeTesting.models;
 
 namespace spotthedifference
 {
-    public enum MenuIcon { Pause, AddCircle, Reset, Save, Home, Play, Create }
+    public enum MenuIcon { Pause, AddCircle, Reset, Save, Home, Play, Create, Cancel }
     /// <summary>A diamond pause button that morphs to a square and toggles to a red X.</summary>
     public sealed class PauseButton : IDisposable
     {
@@ -182,7 +182,12 @@ namespace spotthedifference
 
         private void DrawMenuIcon(Vector2 center, float border)
         {
-            if (Icon == MenuIcon.AddCircle)
+            if (Icon == MenuIcon.Cancel)
+            {
+                DrawBar(center, new Vector2(size * 0.19f, size * 0.57f), MathHelper.PiOver4, border);
+                DrawBar(center, new Vector2(size * 0.19f, size * 0.57f), -MathHelper.PiOver4, border);
+            }
+            else if (Icon == MenuIcon.AddCircle)
             {
                 float radius = size * 0.28f;
                 for (int i = 0; i < 80; i++)

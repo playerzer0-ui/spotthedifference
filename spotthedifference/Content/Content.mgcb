@@ -13,25 +13,17 @@
 
 #---------------------------------- Content ---------------------------------#
 
-#begin UI/original_logo.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyEnabled=False
-/processorParam:PremultiplyAlpha=True
-/build:UI/original_logo.png
-
-#begin UI/new_logo.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyEnabled=False
-/processorParam:PremultiplyAlpha=True
-/build:UI/new_logo.png
+#begin ResultsFont.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:TextureFormat=Color
+/build:ResultsFont.spritefont
 
 #begin InputFont.spritefont
 /importer:FontDescriptionImporter
 /processor:FontDescriptionProcessor
 /processorParam:PremultiplyAlpha=True
-/processorParam:TextureFormat=Compressed
+/processorParam:TextureFormat=Color
 /processorParam:Version=3.8.5.1
 /build:InputFont.spritefont
 
@@ -39,7 +31,7 @@
 /importer:FontDescriptionImporter
 /processor:FontDescriptionProcessor
 /processorParam:PremultiplyAlpha=True
-/processorParam:TextureFormat=Compressed
+/processorParam:TextureFormat=Color
 /processorParam:Version=3.8.5.1
 /build:TitleFont.spritefont
 
@@ -55,6 +47,19 @@
 /processorParam:TextureFormat=Color
 /processorParam:Version=3.8.5.1
 /build:UI/add_circle.png
+
+#begin UI/check.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/processorParam:Version=3.8.5.1
+/build:UI/check.png
 
 #begin UI/create.png
 /importer:TextureImporter
@@ -94,6 +99,19 @@
 /processorParam:TextureFormat=Color
 /processorParam:Version=3.8.5.1
 /build:UI/new_logo.png
+
+#begin UI/ongoing.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/processorParam:Version=3.8.5.1
+/build:UI/ongoing.png
 
 #begin UI/original_logo.png
 /importer:TextureImporter
