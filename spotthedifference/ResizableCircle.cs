@@ -21,9 +21,27 @@ namespace spotthedifference
         private Texture2D selectionPixel;
         private const int ResizeHandleSize = 12;
         private const int MinimumRadius = 10;
+        private const int DeleteButtonSize = 22;
+        private readonly CollisionRect deleteButton;
 
 
         public CollisionCircle Collider => circle1;
+        public bool IsSelected { get; set; } = true;
+        /// <summary>Tests the circle body and, when selected, its visible resize handle.</summary>
+        public bool HitTest(Point point) => circle1.Contains(point)
+            || (IsSelected && (GetResizeHandle().Contains(point) || HitTestDelete(point)));
+
+        public bool HitTestDelete(Point point)
+        {
+            UpdateDeleteButton();
+            return IsSelected && deleteButton.Contains(point);
+        }
+
+        private void UpdateDeleteButton()
+        {
+            Vector2 corner = Center - new Vector2(Radius);
+            deleteButton.UpdateRect((int)System.MathF.Round(corner.X), (int)System.MathF.Round(corner.Y));
+        }
         public Vector2 Center { get => circle1.Center; set => circle1.Center = value; }
         public int Radius
         {
@@ -38,11 +56,12 @@ namespace spotthedifference
             this.canvas = canvas;
             circle1 = new CollisionCircle(0, 0, Math.Max(MinimumRadius, radius));
             circle1.Center = center;
+            deleteButton = new CollisionRect(0, 0, DeleteButtonSize, DeleteButtonSize);
             selectionPixel = new Texture2D(game.GraphicsDevice, 1, 1);
             selectionPixel.SetData(new[] { Color.White });
         }
 
-        public void Update(GameTime gameTime)
+        public void Update(GameTime gameTime, bool allowInteraction = true)
         {
             MouseState currentMouseState = Mouse.GetState();
             bool leftHeld = currentMouseState.LeftButton == ButtonState.Pressed;
@@ -50,7 +69,7 @@ namespace spotthedifference
             Vector2 canvasPos = canvas.ScreenToCanvas(new Vector2(currentMouseState.X, currentMouseState.Y));
             Point clickPoint = new Point((int)canvasPos.X, (int)canvasPos.Y);
 
-            if (!game.IsActive || !leftHeld)
+            if (!allowInteraction || !game.IsActive || !leftHeld)
             {
                 isDraggingCircle = false;
                 isResizingCircle = false;
@@ -99,6 +118,7 @@ namespace spotthedifference
         public void Draw()
         {
             circle1.Draw(PicoPallete.red);
+            if (!IsSelected) return;
             Vector2 topLeft = circle1.Center - new Vector2(circle1.Radius);
             int diameter = circle1.Radius * 2;
             int x = (int)System.MathF.Round(topLeft.X);
@@ -108,6 +128,17 @@ namespace spotthedifference
             Globals.spriteBatch.Draw(selectionPixel, new Rectangle(x, y, 1, diameter), PicoPallete.white);
             Globals.spriteBatch.Draw(selectionPixel, new Rectangle(x + diameter, y, 1, diameter), PicoPallete.white);
             Globals.spriteBatch.Draw(selectionPixel, GetResizeHandle(), PicoPallete.white);
+            UpdateDeleteButton();
+            deleteButton.Draw(PicoPallete.black);
+            Rectangle button = deleteButton.Rect;
+            Globals.spriteBatch.Draw(Globals.Pixel,
+                new Rectangle(button.X + 2, button.Y + 2, button.Width - 4, button.Height - 4), PicoPallete.red);
+            Vector2 buttonCenter = deleteButton.Center;
+            Vector2 crossSize = new Vector2(14, 2);
+            Globals.spriteBatch.Draw(Globals.Pixel, buttonCenter, null, Color.White,
+                MathHelper.PiOver4, new Vector2(0.5f), crossSize, SpriteEffects.None, 0f);
+            Globals.spriteBatch.Draw(Globals.Pixel, buttonCenter, null, Color.White,
+                -MathHelper.PiOver4, new Vector2(0.5f), crossSize, SpriteEffects.None, 0f);
         }
 
         public void Dispose()
